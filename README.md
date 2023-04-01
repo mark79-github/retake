@@ -1,0 +1,111 @@
+# DevOps - Containerization, CI/CD &amp; Monitoring - January 2023 - SoftUni
+
+## Retake Exam
+
+1. Vagrantfile configuration:
+    - docker
+      - Box: `shekeriev/debian-11`
+      - Hostname: `containers.retake.exam`
+      - IP: `192.168.99.122`
+      - Provision scripts: [`add-hosts.sh`](/provision-scripts/add-hosts.sh), [`install_docker.sh`](/provision-scripts/install_docker.sh), [`setup_docker.sh`](/provision-scripts/setup_docker.sh), [`setup_gitea.sh`](/provision-scripts/setup_gitea.sh) and [`install_node_exporter.sh`](/provision-scripts/install_node_exporter.sh)
+      - Shared folder: `shared-files/` => `/vagrant`
+      - VM memory size: `3072`
+    - jenkins
+      - Box: `shekeriev/debian-11`
+      - Hostname: `pipelines.retake.exam`
+      - IP: `192.168.99.121`
+      - Provision scripts: [`add-hosts.sh`](/provision-scripts/add-hosts.sh), [`install_jenkins.sh`](/provision-scripts/install_jenkins.sh), [`setup_jenkins.sh`](/provision-scripts/setup_jenkins.sh) and [`install_node_exporter.sh`](/provision-scripts/install_node_exporter.sh)
+      - Shared folder: `shared-files/`** => `/vagrant`
+      - VM memory size: `3072`
+    - monitoring
+      - Box: `shekeriev/debian-11`
+      - Hostname: `monitoring.retake.exam`
+      - IP: `192.168.99.123`
+      - Provision scripts: [`add-hosts.sh`](/provision-scripts/add-hosts.sh), [`install_docker.sh`](/provision-scripts/install_docker.sh) and [`install_prometheus.sh`**](/provision-scripts/install_prometheus.sh)
+      - Shared folder: `shared-files/` => `/vagrant`
+      - VM memory size: `3072`
+2. Provisioning:
+    - docker
+        - Add hosts
+        - Install docker
+        - Change Docker configuration to expose Prometheus metrics by copying [`daemon.json`](/shared-files/docker/daemon.json) to `/etc/docker/` folder
+        - Install and setup gitea via docker compose using the following configuration file [`docker-compose.yml`](/shared-files/gitea/docker-compose.yml)
+        - Setup gitea with following data:
+            - GITEA__server__DOMAIN=[`192.168.99.122`]
+            - GITEA__server__ROOT_URL=[`http://192.168.99.122:3000`]
+            - GITEA__webhook__ALLOWED_HOST_LIST=[`192.168.99.0/24`]
+        - Clone the following repository [`shekeriev/treasure-finding-contest`](https://github.com/shekeriev/treasure-finding-contest.git)
+        - Copy local files to repository folder and push to gitea public project with name: [`exam`](http://192.168.99.122:3000/vagrant/retake.git)
+        - Add webhook for the [`retake`](http://192.168.99.122:3000/vagrant/retake.git) project
+        - Install and run Node Exporter
+    - jenkins
+        - Add hosts
+        - Install Jenkins and needed components - java-17
+        - Setup Jenkins
+            - Set credentials for docker user: needed to push images to [`https://hub.docker.com/`](https://hub.docker.com/)
+            - Configure jenkins via configuration scripts to automate the process like creating admin account, installing needed plugins and etc.
+            - Download Jenkins CLI
+            - Create vagrant credentials
+            - Create Docker Hub credentials
+            - Add slave node
+            - Add and build the exam job
+        - Install and run Node Exporter
+    - monitoring
+        - Add hosts
+        - Install docker
+        - Install and setup Prometheus and Grafana via docker compose using the following configuration file [`docker-compose.yml`](/shared-files/prometheus/docker-compose.yml)
+            - Copy Prometheus custom configuration file [`prometheus.yml`](/shared-files/prometheus/prometheus.yml) to /tmp folder
+                - scrape metrics configuration for two job `docker` and `node-exporter`
+            - Grafana is provision by following configuration files:
+                - [`dashboard.yml`](/shared-files/grafana/provisioning/dashboards/dashboard.yml)
+                - [`datasource.yml`](/shared-files/grafana/provisioning/datasources/datasource.yml)
+                - Custom cofiguration file to create datasource and dashboard with needed metrics: [`retake-exam.json`](/shared-files/grafana/provisioning/dashboards/retake-exam.json)
+        - Using docker compose with the following configuration [`docker-compose.yml`](/shared-files/prometheus/docker-compose.yml) run the Prometheus & Grafana containers
+3. Credentials
+    - Gitea
+        - user: admin
+        - password: admin
+    - Jenkins
+        - user: admin
+        - password: admin
+    - Grafana
+        - user: admin
+        - password: admin
+4. URL
+    - Builded images:
+        - [`http://localhost/`](http://localhost/)
+        - [`http://192.168.99.122:8080/`](http://192.168.99.122:8080/)
+    - Gitea: [`http://192.168.99.122:3000/vagrant/retake`](http://192.168.99.122:3000/vagrant/retake)
+    - Jenkins:
+        - [`http://localhost:8080`](http://localhost:8080)
+        - [`http://192.168.99.121:8080/`](http://192.168.99.121:8080/)
+    - Grafana:
+        - [`http://localhost:8083`](http://localhost:8083)
+        - [`http://192.168.99.123:3000/`](http://192.168.99.123:3000/)
+    - Prometheus targets: [`http://192.168.99.123:9090/targets`](http://192.168.99.123:9090/targets)
+    - Node exporter metrics on:
+        - jenkins: [`http://192.168.99.121:9100/metrics`](http://192.168.99.121:9100/metrics)
+        - docker: [`http://192.168.99.122:9100/metrics`](http://192.168.99.122:9100/metrics)
+    - Docker metrics: [`http://192.168.99.122:9323/metrics`](http://192.168.99.122:9323/metrics)
+    - Docker hub repositories: [`https://hub.docker.com/search?q=striker313`](https://hub.docker.com/search?q=striker313)
+5. Screenshots
+    - [`gitea repository`](/img/001.png)
+    - [`building jenkins job`](/img/002.png)
+    - [`successfully builded jenkins job`](/img/003.png)
+    - [`manage jenkins - installed plugins - gitea`](/img/004.png)
+    - [`manage jenkins - nodes - slave node - docker`](/img/005.png)
+    - [`manage jenkins - credentials`](/img/006.png)
+    - [`manage jenkins - jenkins job - configuration`](/img/007.png)
+    - [`prometheus targets`](/img/008.png)
+    - [`node exporter metrics on jenkins`](/img/009.png)
+    - [`node exporter metrics on docker`](/img/010.png)
+    - [`dcoker metrics`](/img/011.png)
+    - [`grafana dashboard`](/img/012.png)
+    - [`final result of builded images`](/img/013.png)
+    - [`docker hub`](/img/014.png)
+    - [`gitea webhook settings`](/img/015.png)
+    - [`gitea change file on repository`](/img/016.png)
+    - [`gitea commit verify`](/img/017.png)
+    - [`jenkins job trigger rerun of the job`](/img/018.png)
+    - [`jenkins job success test with commited data`](/img/019.png)
+    - [`jenkins job successfully build`](/img/020.png)

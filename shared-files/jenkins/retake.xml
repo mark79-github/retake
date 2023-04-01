@@ -1,0 +1,171 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1289.vd1c337fd5354">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2125.vddb_a_44a_d605e"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2125.vddb_a_44a_d605e">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.37.0">
+      <projectUrl>http://192.168.99.122:3000/vagrant/retake/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers>
+        <com.cloudbees.jenkins.GitHubPushTrigger plugin="github@1.37.0">
+          <spec></spec>
+        </com.cloudbees.jenkins.GitHubPushTrigger>
+        <hudson.triggers.SCMTrigger>
+          <spec></spec>
+          <ignorePostCommitHooks>false</ignorePostCommitHooks>
+        </hudson.triggers.SCMTrigger>
+      </triggers>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3653.v07ea_433c90b_4">
+    <script>pipeline 
+{
+    agent 
+    {
+        label &quot;docker&quot;
+    }
+    environment 
+    {
+        DOCKERHUB_CREDENTIALS=credentials(&quot;docker-hub&quot;)
+        STORAGE=&quot;database&quot;
+        CONSUMER=&quot;frontend&quot;
+        PRODUCER=&quot;backend&quot;
+        IMG_PREFIX=&quot;img&quot;
+        CON_PREFIX=&quot;con&quot;
+        CON_NETWORK=&quot;retake&quot;
+        DB_PASSWORD=&quot;ExamPassw0rd&quot;
+        SLEEP=&quot;20&quot;
+        HOST=&quot;http://192.168.99.122&quot;
+        PORT=&quot;3000&quot;
+        USER=&quot;vagrant&quot;
+        REPO=&quot;retake&quot;
+        IMG_STORAGE=&quot;${IMG_PREFIX}-${STORAGE}&quot;
+        IMG_CONSUMER=&quot;${IMG_PREFIX}-${CONSUMER}&quot;
+        IMG_PRODUCER=&quot;${IMG_PREFIX}-${PRODUCER}&quot;
+        CON_STORAGE=&quot;${CON_PREFIX}-${STORAGE}&quot;
+        CON_PRODUCER=&quot;${CON_PREFIX}-${PRODUCER}&quot;
+        CON_CONSUMER=&quot;${CON_PREFIX}-${CONSUMER}&quot;
+    }
+    stages 
+    {
+        stage(&apos;Clone&apos;) 
+        {
+            steps 
+            {
+                git branch: &apos;main&apos;, url: &quot;${HOST}:${PORT}/${USER}/${REPO}/&quot;
+            }
+        }
+        stage(&apos;Prepare network&apos;)
+        {
+            steps
+            {
+                sh &apos;docker network ls | grep ${CON_NETWORK} || docker network create ${CON_NETWORK}&apos;
+            }
+        }
+        stage(&apos;Build images&apos;)
+        {
+            steps
+            {
+                sh &apos;docker image rm -f ${IMG_STORAGE}&apos;
+                sh &apos;docker image rm -f ${IMG_PRODUCER}&apos;
+                sh &apos;docker image rm -f ${IMG_CONSUMER}&apos;
+                dir(&quot;${STORAGE}&quot;) {
+                    sh &apos;docker image build -t ${IMG_STORAGE} .&apos;
+                }
+                dir(&quot;${CONSUMER}&quot;) {
+                    sh &apos;docker image build -t ${IMG_CONSUMER} .&apos;
+                }
+                dir(&quot;${PRODUCER}&quot;) {
+                    sh &apos;docker image build -t ${IMG_PRODUCER} .&apos;
+                }
+            }
+        }
+        stage(&apos;Run&apos;)
+        {
+            steps
+            {
+                sh &apos;docker container rm -f ${CON_STORAGE}&apos;
+                sh &apos;docker container rm -f ${CON_PRODUCER}&apos;
+                sh &apos;docker container rm -f ${CON_CONSUMER}&apos;
+                sh &apos;docker container run -d --name ${CON_STORAGE} -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} --net ${CON_NETWORK} ${IMG_STORAGE}&apos;
+                sh &apos;docker container run -d --name ${CON_PRODUCER} -e DB_PASS=${DB_PASSWORD} --net ${CON_NETWORK} --link ${CON_STORAGE} ${IMG_PRODUCER}&apos;
+                sh &apos;docker container run -d --name ${CON_CONSUMER} -p 8080:5000 -e DB_PASS=${DB_PASSWORD} --net ${CON_NETWORK} --link ${CON_PRODUCER} ${IMG_CONSUMER}&apos;
+            }
+        }
+        stage(&apos;Test&apos;)
+        {
+            steps
+            {
+                script 
+                {
+                    echo &quot;Wait ${SLEEP} seconds&quot;
+                    sh &apos;sleep ${SLEEP}&apos;
+                    
+                    echo &apos;Test #1 - reachability&apos;
+                    sh &apos;echo $(curl --write-out &quot;%{http_code}&quot; --silent --output /dev/null http://localhost:8080) | grep 200&apos;
+
+                    echo &quot;Wait ${SLEEP} seconds&quot;
+                    sh &apos;sleep ${SLEEP}&apos;
+
+                    echo &apos;Test #2&apos;
+                    sh &apos;echo $(curl --silent http://localhost:8080) | grep $(cat ./${CONSUMER}/code/app.dat)&apos;
+                }
+            }
+        }
+        stage(&apos;Login&apos;)
+        {
+            steps 
+            {
+                sh &apos;echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin&apos;
+            }
+        }
+        stage(&apos;Push images&apos;)
+        {
+            steps
+            {
+                sh &apos;docker image tag ${IMG_STORAGE} $DOCKERHUB_CREDENTIALS_USR/${IMG_STORAGE}&apos;
+                sh &apos;docker image tag ${IMG_PRODUCER} $DOCKERHUB_CREDENTIALS_USR/${IMG_PRODUCER}&apos;
+                sh &apos;docker image tag ${IMG_CONSUMER} $DOCKERHUB_CREDENTIALS_USR/${IMG_CONSUMER}&apos;
+                sh &apos;docker image push $DOCKERHUB_CREDENTIALS_USR/${IMG_STORAGE}&apos;
+                sh &apos;docker image push $DOCKERHUB_CREDENTIALS_USR/${IMG_PRODUCER}&apos;
+                sh &apos;docker image push $DOCKERHUB_CREDENTIALS_USR/${IMG_CONSUMER}&apos;
+            }
+        }
+        stage(&apos;Deploy&apos;)
+        {
+            steps
+            {
+                sh &apos;docker container rm -f ${CON_STORAGE}&apos;
+                sh &apos;docker container rm -f ${CON_PRODUCER}&apos;
+                sh &apos;docker container rm -f ${CON_CONSUMER}&apos;
+                sh &apos;docker container run -d --name ${CON_STORAGE} -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} --net ${CON_NETWORK} $DOCKERHUB_CREDENTIALS_USR/${IMG_STORAGE}&apos;
+                sh &apos;docker container run -d --name ${CON_PRODUCER} -e DB_PASS=${DB_PASSWORD} --net ${CON_NETWORK} --link ${CON_STORAGE} $DOCKERHUB_CREDENTIALS_USR/${IMG_PRODUCER}&apos;
+                sh &apos;docker container run -d --name ${CON_CONSUMER} -p 8080:5000 -e DB_PASS=${DB_PASSWORD} --net ${CON_NETWORK} --link ${CON_PRODUCER} $DOCKERHUB_CREDENTIALS_USR/${IMG_CONSUMER}&apos;
+            }
+        }
+    }
+    post 
+    { 
+        always 
+        { 
+            cleanWs()
+        }
+    }
+}
+</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
