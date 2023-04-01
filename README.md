@@ -102,7 +102,6 @@
     - [`dcoker metrics`](/img/011.png)
     - [`grafana dashboard`](/img/012.png)
     - [`final result of builded images`](/img/013.png)
-    - [`docker hub`](/img/014.png)
     - [`gitea webhook settings`](/img/015.png)
     - [`gitea change file on repository`](/img/016.png)
     - [`gitea commit verify`](/img/017.png)
