@@ -35,12 +35,12 @@
             - GITEA__server__ROOT_URL=[`http://192.168.99.122:3000`]
             - GITEA__webhook__ALLOWED_HOST_LIST=[`192.168.99.0/24`]
         - Clone the following repository [`shekeriev/treasure-finding-contest`](https://github.com/shekeriev/treasure-finding-contest.git)
-        - Copy local files to repository folder and push to gitea public project with name: [`exam`](http://192.168.99.122:3000/vagrant/retake.git)
+        - Copy local files to repository folder and push to gitea public project with name: [`retake`](http://192.168.99.122:3000/vagrant/retake.git)
         - Add webhook for the [`retake`](http://192.168.99.122:3000/vagrant/retake.git) project
-        - Install and run Node Exporter
+        - Install and run node-exporter
     - jenkins
         - Add hosts
-        - Install Jenkins and needed components - java-17
+        - Install Jenkins and needed components - java-17, etc.
         - Setup Jenkins
             - Set credentials for docker user: needed to push images to [`https://hub.docker.com/`](https://hub.docker.com/)
             - Configure jenkins via configuration scripts to automate the process like creating admin account, installing needed plugins and etc.
@@ -48,33 +48,32 @@
             - Create vagrant credentials
             - Create Docker Hub credentials
             - Add slave node
-            - Add and build the exam job
-        - Install and run Node Exporter
+            - Add and build the `retake` job
+        - Install and run node-exporter
     - monitoring
         - Add hosts
         - Install docker
         - Install and setup Prometheus and Grafana via docker compose using the following configuration file [`docker-compose.yml`](/shared-files/prometheus/docker-compose.yml)
             - Copy Prometheus custom configuration file [`prometheus.yml`](/shared-files/prometheus/prometheus.yml) to /tmp folder
-                - scrape metrics configuration for two job `docker` and `node-exporter`
+                - scrape metrics configuration for one job `docker` and two `node-exporter` ones
             - Grafana is provision by following configuration files:
                 - [`dashboard.yml`](/shared-files/grafana/provisioning/dashboards/dashboard.yml)
                 - [`datasource.yml`](/shared-files/grafana/provisioning/datasources/datasource.yml)
                 - Custom cofiguration file to create datasource and dashboard with needed metrics: [`retake-exam.json`](/shared-files/grafana/provisioning/dashboards/retake-exam.json)
-        - Using docker compose with the following configuration [`docker-compose.yml`](/shared-files/prometheus/docker-compose.yml) run the Prometheus & Grafana containers
 3. Credentials
     - Gitea
-        - user: admin
-        - password: admin
+        - user: `admin`
+        - password: `admin`
     - Jenkins
-        - user: admin
-        - password: admin
+        - user: `admin`
+        - password: `admin`
     - Grafana
-        - user: admin
-        - password: admin
+        - user: `admin`
+        - password: `admin`
 4. URL
     - Builded images:
         - [`http://localhost/`](http://localhost/)
-        - [`http://192.168.99.122:8080/`](http://192.168.99.122:8080/)
+        - [`http://192.168.99.122/`](http://192.168.99.122/)
     - Gitea: [`http://192.168.99.122:3000/vagrant/retake`](http://192.168.99.122:3000/vagrant/retake)
     - Jenkins:
         - [`http://localhost:8080`](http://localhost:8080)
